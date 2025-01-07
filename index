@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>German Determiner Game</title>
+  <!-- Import de la police Quicksand -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap"
+    rel="stylesheet"
+  />
+  <!-- Bibliothèque Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+  <style>
+    /* =======  RESET ET BASE  ======= */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: linear-gradient(135deg, #0b132b, #3a506b);
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      outline: none;
+    }
+    /* =======  GLASSMORPHISM  ======= */
+    .glass {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    /* =======  ÉCRAN D'ACCUEIL  ======= */
+    #start-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 90%;
+      max-width: 600px;
+      padding: 40px;
+    }
+    #start-screen h2 {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    #start-screen button {
+      margin: 10px;
+      font-size: 1.2rem;
+      padding: 10px 20px;
+      border-radius: 10px;
+      transition: all 0.2s ease-in-out;
+    }
+    #start-screen button:hover {
+      transform: scale(1.05);
+    }
+    #btn-vp.active {
+      background-color: #d7385e; /* Couleur flashy */
+    }
+    #btn-vg.active {
+      background-color: #e8a87c; /* Couleur flashy */
+    }
+    #start {
+      background-color: #22d1ee;
+    }
+
+    /* =======  ÉCRAN DE JEU  ======= */
+    #game-screen {
+      display: none;
+      flex-direction: column;
+      width: 90%;
+      max-width: 900px;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    /* Scoreboard */
+    #scoreboard {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 1.5rem;
+    }
+    /* Zone du mot */
+    #word-container {
+      margin-top: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    #current-word {
+      font-size: 5rem;
+      color: #fff;
+      text-shadow: 2px 2px 5px rgba(0,0,0,0.4);
+    }
+    /* Zone des déterminants */
+    #det-container {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-bottom: 30px;
+    }
+    .det-btn {
+      font-size: 2rem;
+      padding: 20px 40px;
+      border-radius: 10px;
+      color: #ffffff;
+      text-align: center;
+      min-width: 100px;
+      transition: transform 0.2s;
+    }
+    /* Couleurs pour Der/Die/Das */
+    .det-der {
+      background-color: #309cff; /* Bleu */
+    }
+    .det-die {
+      background-color: #ff4b5c; /* Rouge */
+    }
+    .det-das {
+      background-color: #41f06d; /* Vert */
+    }
+    .det-btn:hover {
+      transform: scale(1.08);
+    }
+
+    /* Boutons + et - */
+    #controls {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    #plus-btn,
+    #minus-btn {
+      font-size: 2rem;
+      background-color: #F7B801; /* Couleur flashy */
+      color: #000;
+      padding: 10px 20px;
+      border-radius: 10px;
+      transition: transform 0.2s;
+    }
+    #plus-btn:hover,
+    #minus-btn:hover {
+      transform: scale(1.1);
+    }
+    /* Animation simple sur la mise en évidence du déterminant correct */
+    .highlight {
+      animation: highlight 0.5s ease-in-out forwards;
+    }
+    @keyframes highlight {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ÉCRAN D'ACCUEIL -->
+  <div id="start-screen" class="glass">
+    <h2>Choisissez la liste de mots</h2>
+    <div>
+      <button id="btn-vp">VP</button>
+      <button id="btn-vg">VG</button>
+    </div>
+    <button id="start">Start</button>
+  </div>
+
+  <!-- ÉCRAN DE JEU -->
+  <div id="game-screen" class="glass">
+    <div id="scoreboard">
+      Score : <span id="score">0</span>
+    </div>
+
+    <div id="word-container">
+      <h1 id="current-word"></h1>
+    </div>
+
+    <div id="det-container">
+      <div class="det-btn det-der" id="det-1">DER</div>
+      <div class="det-btn det-die" id="det-2">DIE</div>
+      <div class="det-btn det-das" id="det-3">DAS</div>
+    </div>
+
+    <div id="controls">
+      <button id="plus-btn">+</button>
+      <button id="minus-btn">-</button>
+    </div>
+  </div>
+
+  <script>
+    /***************************
+     * 1) LISTES DE MOTS (exemple)
+     *    Vous pouvez adapter ces listes
+     ***************************/
+    // Liste VG : fruits/légumes
+    let wordsVG = [
+      {word: "Apfel", correct: "der"},
+      {word: "Banane", correct: "die"},
+      {word: "Tomate", correct: "die"},
+      {word: "Karotte", correct: "die"},
+      {word: "Gurke", correct: "die"}
+      // Ajoutez ici d'autres fruits/légumes...
+    ];
+    // Liste VP : métiers
+    let wordsVP = [
+      {word: "Lehrer", correct: "der"},
+      {word: "Ärztin", correct: "die"},
+      {word: "Koch", correct: "der"},
+      {word: "Ingenieur", correct: "der"},
+      {word: "Bäcker", correct: "der"}
+      // Ajoutez ici d'autres métiers...
+    ];
+
+    /***************************
+     * 2) VARIABLES GLOBALES
+     ***************************/
+    let activeList = null;        // Contient soit wordsVG, soit wordsVP
+    let currentIndex = 0;         // Index du mot actuel
+    let score = 0;                // Score global
+    let canPressButtons = true;   // Pour éviter double clic pendant les 2s d'animation
+
+    // Références aux éléments DOM
+    const startScreen   = document.getElementById("start-screen");
+    const gameScreen    = document.getElementById("game-screen");
+    const btnVP         = document.getElementById("btn-vp");
+    const btnVG         = document.getElementById("btn-vg");
+    const startBtn      = document.getElementById("start");
+    const currentWordEl = document.getElementById("current-word");
+    const det1          = document.getElementById("det-1");
+    const det2          = document.getElementById("det-2");
+    const det3          = document.getElementById("det-3");
+    const plusBtn       = document.getElementById("plus-btn");
+    const minusBtn      = document.getElementById("minus-btn");
+    const scoreEl       = document.getElementById("score");
+
+    // Déterminants pour afficher en random (der, die, das)
+    let determiners = [
+      { text: "DER", class: "det-der" },
+      { text: "DIE", class: "det-die" },
+      { text: "DAS", class: "det-das" }
+    ];
+
+    // Sons de feedback
+    const successAudio = new Audio("https://https://www.soundjay.com/buttons/sounds/button-11.mp3"); // Son de réussite fiable
+    const failureAudio = new Audio("https://www.soundjay.com/buttons/sounds/button-10.mp3"); // Son de défaillance
+
+    // Gestion des erreurs de chargement audio
+    successAudio.addEventListener('error', (e) => {
+      console.error("Erreur de chargement de successAudio :", e);
+    });
+
+    failureAudio.addEventListener('error', (e) => {
+      console.error("Erreur de chargement de failureAudio :", e);
+    });
+
+    /***************************
+     * 3) FONCTIONS UTILES
+     ***************************/
+    // Mélange un tableau (algorithme de Fisher-Yates)
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // Afficher un mot et 3 déterminants dans un ordre aléatoire
+    function displayWord() {
+      if (!activeList) return;
+
+      // Récupère le mot actuel
+      let currentItem = activeList[currentIndex];
+      currentWordEl.textContent = currentItem.word;
+
+      // Mélange les 3 déterminants
+      let randomDets = shuffle([...determiners]);
+      // Assigne chaque déterminant à l'un des 3 div
+      [det1, det2, det3].forEach((detDiv, index) => {
+        detDiv.textContent = randomDets[index].text;
+        // Retire les classes existantes de type det-der/die/das
+        detDiv.classList.remove("det-der", "det-die", "det-das", "highlight");
+        // Ajoute la classe correspondante
+        detDiv.classList.add(randomDets[index].class);
+        // Le rend visible (si jamais il était masqué)
+        detDiv.style.visibility = "visible";
+      });
+    }
+
+    // Affiche le prochain mot
+    function nextWord() {
+      currentIndex++;
+      if (currentIndex >= activeList.length) {
+        // On peut repartir à zéro ou boucler à l'infini
+        // Au choix : ici on repart à zéro pour boucler
+        currentIndex = 0;
+      }
+      displayWord();
+      canPressButtons = true;
+    }
+
+    // Met en évidence le déterminant correct et masque les deux autres
+    function highlightCorrectDet() {
+      const correctDet = activeList[currentIndex].correct.toUpperCase();
+      const allDets = [det1, det2, det3];
+      allDets.forEach(det => {
+        if (det.textContent === correctDet) {
+          det.classList.add("highlight");
+        } else {
+          det.style.visibility = "hidden";
+        }
+      });
+    }
+
+    // Fonction pour déclencher les confettis
+    function launchConfetti() {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }
+
+    /***************************
+     * 4) BOUTONS DE L'ÉCRAN D'ACCUEIL
+     ***************************/
+    btnVP.addEventListener("click", () => {
+      activeList = wordsVP;
+      btnVP.classList.add("active");
+      btnVG.classList.remove("active");
+    });
+    btnVG.addEventListener("click", () => {
+      activeList = wordsVG;
+      btnVG.classList.add("active");
+      btnVP.classList.remove("active");
+    });
+    startBtn.addEventListener("click", () => {
+      // Si aucune liste n'a été choisie, on sort
+      if (!activeList) {
+        alert("Veuillez choisir une liste (VP ou VG).");
+        return;
+      }
+      // Initialise l'index et le score
+      currentIndex = 0;
+      score = 0;
+      scoreEl.textContent = score;
+      // Transition vers l'écran de jeu
+      startScreen.style.display = "none";
+      gameScreen.style.display = "flex";
+      displayWord();
+    });
+
+    /***************************
+     * 5) BOUTONS + ET -
+     ***************************/
+    plusBtn.addEventListener("click", () => {
+      if (!canPressButtons) return;
+      canPressButtons = false;
+      // Réponse correcte
+      score += 2;
+      scoreEl.textContent = score;
+      successAudio.currentTime = 0;
+      successAudio.play().catch(error => {
+        console.error("Erreur de lecture de successAudio :", error);
+      });
+      launchConfetti(); // Ajout de l'animation confettis
+      highlightCorrectDet();
+      setTimeout(nextWord, 2000);
+    });
+
+    minusBtn.addEventListener("click", () => {
+      if (!canPressButtons) return;
+      canPressButtons = false;
+      // Réponse incorrecte
+      score -= 1;
+      scoreEl.textContent = score;
+      failureAudio.currentTime = 0;
+      failureAudio.play().catch(error => {
+        console.error("Erreur de lecture de failureAudio :", error);
+      });
+      highlightCorrectDet();
+      setTimeout(nextWord, 2000);
+    });
+  </script>
+</body>
+</html>
